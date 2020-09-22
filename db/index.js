@@ -1,6 +1,5 @@
-const { Client } = require('pg'); // imports the pg module
+const { Client } = require('pg');
 
-// supply the db name and location of the database
 const client = new Client('postgres://localhost:5432/juicebox-dev');
 
 async function getAllUsers() {
@@ -120,9 +119,6 @@ async function createPost({
 }
 
 async function updatePost(id, fields = {}) { 
-  //fields = {title, content, active}
- 
-  // read off the tags & remove that field 
   const { tags } = fields; // might be undefined
   delete fields.tags;
 
@@ -135,15 +131,6 @@ async function updatePost(id, fields = {}) {
   }
   
   try {
-    // const { rows: [post]} = await client.query(`
-    //   UPDATE posts
-    //   SET ${ setString }
-    //   WHERE id=${ id }
-    //   RETURNING *;
-    // `, Object.values(fields));
-
-    // return post;
-
     if (setString.length > 0) {
       await client.query(`
         UPDATE posts
@@ -153,18 +140,15 @@ async function updatePost(id, fields = {}) {
       `, Object.values(fields));
     }
 
-    // return early if there's no tags to update
     if (tags === undefined) {
       return await getPostById(id);
     }
 
-    // make any new tags that need to be made
     const tagList = await createTags(tags);
     const tagListIdString = tagList.map(
       tag => `${ tag.id }`
     ).join(', ');
 
-    // delete any post_tags from the database which aren't in that tagList
     await client.query(`
       DELETE FROM post_tags
       WHERE "tagId"
@@ -172,8 +156,7 @@ async function updatePost(id, fields = {}) {
       AND "postId"=$1;
     `, [postId]);
 
-    // and create post_tags as necessary
-    await addTagsToPost(id, tagList); //are these supposed to be the og postId or id
+    await addTagsToPost(id, tagList);
 
     return await getPostById(id);
 
@@ -181,20 +164,6 @@ async function updatePost(id, fields = {}) {
     throw error;
   }
 }
-
-// async function getPostsByUser(userId) {
-//   try {
-//     const { rows } = await client.query(`
-//       SELECT * 
-//       FROM posts
-//       WHERE "authorId"=${ userId };
-//     `);
-
-//     return rows;
-//   } catch (error) {
-//     throw error;
-//   }
-// }
 
 async function getPostsByUser(userId) {
   try {
@@ -219,28 +188,19 @@ async function createTags(tagList) {
     return; 
   }
 
-  // need something like: $1), ($2), ($3 
   const insertValues = tagList.map(
     (_, index) => `$${index + 1}`).join('), (');
-  // then we can use: (${ insertValues }) in our string template
 
-  // need something like $1, $2, $3
   const selectValues = tagList.map(
     (_, index) => `$${index + 1}`).join(', ');
-  // then we can use (${ selectValues }) in our string template
- 
+  
   try {
-    // insert the tags, doing nothing on conflict
-    // returning nothing, we'll query after
-    
     await client.query(`
       INSERT INTO tags(name)
       VALUES (${insertValues})
       ON CONFLICT (name) DO NOTHING;
     `, tagList);
 
-    // select all tags where the name is in our taglist
-    // return the rows from the query
     const {rows} = await client.query(`
       SELECT * FROM tags
       WHERE name
@@ -248,6 +208,19 @@ async function createTags(tagList) {
     `, tagList);
     return rows;
   } catch (error) {
+    throw error;
+  }
+}
+
+async function getAllTags() {
+  try{
+    const { rows } = await client.query(`
+      SELECT *
+      FROM tags;
+    `);
+  
+    return rows;
+  } catch(error) {
     throw error;
   }
 }
@@ -342,5 +315,6 @@ module.exports = {
   createPostTag,
   addTagsToPost,
   getPostById,
-  getPostsByTagName
+  getPostsByTagName,
+  getAllTags
 }
