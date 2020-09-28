@@ -39,7 +39,6 @@ apiRouter.use((req, res, next) => {
     if (req.user) {
         console.log("User is set:", req.user);
     }
-    // res.send('hello')
     next();
 })
 
